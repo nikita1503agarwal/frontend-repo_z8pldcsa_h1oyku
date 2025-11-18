@@ -1,16 +1,46 @@
-import React from 'react'
-import { motion, useScroll, useTransform } from 'framer-motion'
+import React, { useRef } from 'react'
+import { motion, useScroll, useTransform, useMotionValue, useSpring, useMotionTemplate } from 'framer-motion'
 import Spline from '@splinetool/react-spline'
 
 const Hero = () => {
-  const { scrollYProgress } = useScroll()
-  // Slight darkening on scroll to keep contrast as user moves down
+  const sectionRef = useRef(null)
+  const { scrollYProgress } = useScroll({ target: sectionRef, offset: ['start start', 'end start'] })
+
+  // Contrast control on scroll
   const darken = useTransform(scrollYProgress, [0, 0.6, 1], [0.35, 0.55, 0.7])
+  // Cyan (cool) tint that increases with scroll to shift the gold temperature slightly colder
+  const coolOpacity = useTransform(scrollYProgress, [0, 1], [0, 0.35])
+
+  // Cursor-following specular highlight (with spring smoothing)
+  const mx = useMotionValue(50)
+  const my = useMotionValue(40)
+  const smx = useSpring(mx, { stiffness: 140, damping: 18, mass: 0.25 })
+  const smy = useSpring(my, { stiffness: 140, damping: 18, mass: 0.25 })
+
+  const handleMouseMove = (e) => {
+    const rect = sectionRef.current?.getBoundingClientRect()
+    if (!rect) return
+    const x = ((e.clientX - rect.left) / rect.width) * 100
+    const y = ((e.clientY - rect.top) / rect.height) * 100
+    mx.set(Math.max(0, Math.min(100, x)))
+    my.set(Math.max(0, Math.min(100, y)))
+  }
+
+  // Single motion template with two radial gradients (white sheen + golden glow) following the cursor
+  const specular = useMotionTemplate`
+    radial-gradient(420px 200px at ${smx}% ${smy}%, rgba(255,255,255,0.32), rgba(255,255,255,0) 60%),
+    radial-gradient(600px 280px at ${smx}% ${smy}%, rgba(212,175,55,0.20), rgba(212,175,55,0) 60%)
+  `
 
   return (
-    <section className="group relative min-h-[92vh] w-full overflow-hidden bg-black">
-      {/* Gold background */}
+    <section
+      ref={sectionRef}
+      onMouseMove={handleMouseMove}
+      className="group relative min-h-[92vh] w-full overflow-hidden bg-black"
+    >
+      {/* Gold base background */}
       <div
+        aria-hidden="true"
         className="absolute inset-0"
         style={{
           backgroundImage:
@@ -22,8 +52,20 @@ const Hero = () => {
         }}
       />
 
+      {/* Cool tint overlay that increases on scroll to shift temperature */}
+      <motion.div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 mix-blend-color"
+        style={{
+          background:
+            'linear-gradient(135deg, rgba(0,255,255,0.18) 0%, rgba(0,180,180,0.10) 40%, rgba(0,0,0,0) 80%)',
+          opacity: coolOpacity,
+        }}
+      />
+
       {/* Brushed gold texture (subtle) */}
       <div
+        aria-hidden="true"
         className="pointer-events-none absolute inset-0 opacity-20 mix-blend-overlay"
         style={{
           backgroundImage:
@@ -34,6 +76,7 @@ const Hero = () => {
 
       {/* Subtle animated shimmer over the gold (intensifies on hover) */}
       <div
+        aria-hidden="true"
         className="pointer-events-none absolute inset-0 opacity-25 transition-opacity duration-700 group-hover:opacity-40"
         style={{
           backgroundImage: 'linear-gradient(115deg, rgba(255,255,255,0) 30%, rgba(255,255,255,0.15) 50%, rgba(255,255,255,0) 70%)',
@@ -44,12 +87,19 @@ const Hero = () => {
 
       {/* Fine grain overlay for luxury feel */}
       <div
+        aria-hidden="true"
         className="pointer-events-none absolute inset-0 opacity-[0.08] mix-blend-overlay"
         style={{
-          backgroundImage:
-            `radial-gradient(rgba(255,255,255,0.07) 1px, transparent 1px)`,
+          backgroundImage: 'radial-gradient(rgba(255,255,255,0.07) 1px, transparent 1px)',
           backgroundSize: '2px 2px'
         }}
+      />
+
+      {/* Cursor-following specular highlight */}
+      <motion.div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 mix-blend-screen"
+        style={{ backgroundImage: specular }}
       />
 
       {/* Spline 3D scene */}
@@ -59,6 +109,7 @@ const Hero = () => {
 
       {/* Darkening overlay for contrast that reacts with scroll */}
       <motion.div
+        aria-hidden="true"
         className="pointer-events-none absolute inset-0"
         style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.35), rgba(0,0,0,0.85))', opacity: darken }}
       />
@@ -115,7 +166,7 @@ const Hero = () => {
       </div>
 
       {/* Ambient cyan lines */}
-      <div className="pointer-events-none absolute inset-0">
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0">
         <div className="absolute left-1/2 top-0 h-full w-[1px] -translate-x-1/2 bg-gradient-to-b from-cyan-400/20 via-cyan-400/0 to-cyan-400/20" />
         <div className="absolute left-[20%] top-0 h-full w-px bg-gradient-to-b from-cyan-400/10 via-transparent to-cyan-400/10" />
         <div className="absolute left-[80%] top-0 h-full w-px bg-gradient-to-b from-cyan-400/10 via-transparent to-cyan-400/10" />
